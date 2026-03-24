@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Vocales - Bolita y Palito</title>
+
+<style>
+body {
+    font-family: 'Arial Rounded MT Bold', 'Helvetica', sans-serif;
+    text-align: center;
+    background: linear-gradient(#bde7ff, #f4fbff);
+    margin: 0; padding: 0; user-select: none; overflow: hidden;
+}
+
+#marcador {
+    position: absolute; top: 20px; right: 20px;
+    background: white; padding: 10px 20px; border-radius: 20px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1); font-size: 22px; color: #ff9800;
+    z-index: 1000;
+}
+
+#pantalla-inicio, #pantalla-siguiente, #final {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(189, 231, 255, 0.98); z-index: 2000; 
+    display: flex; justify-content: center; align-items: center;
+}
+
+.card {
+    background: white; padding: 30px; border-radius: 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 85%;
+}
+
+#juego {
+    display: flex; flex-direction: column; height: 100vh;
+    justify-content: center; align-items: center; padding: 10px; box-sizing: border-box;
+}
+
+#barra { width: 60%; height: 12px; background: #eee; border-radius: 20px; margin-bottom: 10px; overflow: hidden; }
+#progreso { height: 100%; width: 0%; background: #6bd66b; transition: width 0.5s; }
+
+#imagen img { 
+    max-height: 160px; max-width: 220px; background: white; 
+    padding: 10px; border-radius: 20px; object-fit: contain;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+#palabra { display: flex; justify-content: center; align-items: center; gap: 8px; margin: 20px 0; min-height: 80px; flex-wrap: wrap; }
+
+.letra-display { font-size: 50px; font-weight: bold; text-transform: lowercase; color: #333; }
+
+.vacio {
+    width: 65px; height: 65px; background: #fff; border: 3px dashed #999;
+    border-radius: 15px; display: flex; align-items: center; justify-content: center;
+    font-size: 50px; font-weight: bold; color: #333;
+}
+
+.vacio.bien { border: 3px solid #28a745; background: #d4edda; color: #28a745; border-style: solid; }
+.vacio.mal { border: 3px solid #dc3545; background: #f8d7da; animation: shake 0.3s; }
+
+@keyframes shake {
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    50% { transform: translateX(5px); }
+    100% { transform: translateX(0); }
+}
+
+.contenedor-letras { display: flex; gap: 15px; height: 100px; align-items: center; margin-bottom: 20px; }
+
+.letra-boton {
+    font-size: 50px; width: 80px; height: 80px; line-height: 80px;
+    border-radius: 20px; cursor: grab; background: white;
+    box-shadow: 0 6px #ccc; touch-action: none; position: relative; font-weight: bold;
+}
+
+.a { background: #ffb3b3; }
+.u { background: #b3d9ff; }
+.o { background: #ffd9b3; }
+
+#btn-comprobar {
+    background: #6bd66b; color: white; padding: 15px 40px;
+    border-radius: 50px; border: none; font-size: 24px; cursor: pointer;
+    box-shadow: 0 5px #4cae4c; font-weight: bold;
+}
+
+#btn-comprobar:active { transform: translateY(3px); box-shadow: 0 2px #4cae4c; }
+</style>
+</head>
+
+<body>
+
+<div id="marcador">⭐ <span id="puntos">0</span></div>
+
+<div id="pantalla-inicio">
+    <div class="card">
+        <h2>¿Cómo jugar? 💡</h2>
+        <p style="font-size: 18px; text-align: left; line-height: 1.8;">
+            1. Mira la imagen 🖼️<br>
+            2. Arrastra las vocales a los cuadros 🔠<br>
+            3. Al terminar, pulsa el botón verde ✅
+        </p>
+        <button onclick="iniciarNivel(1)" id="btn-comprobar">¡Empezar!</button>
+    </div>
+</div>
+
+<div id="pantalla-siguiente" style="display:none;">
+    <div class="card">
+        <h2>✨ ¡Nivel 1 Superado! ✨</h2>
+        <p>Puntos: <b id="puntos-intermedios"></b><br>¡Ahora usaremos la vocal <b>O</b>!</p>
+        <button onclick="iniciarNivel(2)" id="btn-comprobar">Siguiente Nivel</button>
+    </div>
+</div>
+
+<div id="juego">
+    <div id="barra"><div id="progreso"></div></div>
+    <div id="imagen"></div>
+    <div id="palabra"></div>
+
+    <div class="contenedor-letras">
+        <div class="letra-boton a" id="vocal-a">a</div>
+        <div class="letra-boton u" id="vocal-u">u</div>
+        <div class="letra-boton o" id="vocal-o" style="display:none;">o</div>
+    </div>
+
+    <button id="btn-comprobar" onclick="verificarPalabra()">COMPROBAR</button>
+
+    <div id="final" style="display:none;">
+        <div class="card">
+            <h2>🏆 ¡Felicidades!</h2>
+            <p>Puntuación Total: <b id="total-final"></b> puntos.</p>
+            <button onclick="location.reload()" id="btn-comprobar">Jugar de nuevo</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const nivel1 = [
+    {imagen:"https://png.pngtree.com/png-vector/20250416/ourmid/pngtree-cartoon-christmas-angel-wing-png-image_16030537.png", palabra:"ala"},
+    {imagen:"https://fundaciondelcorazon.com/images/stories/corazon-facil/impulso-vital/uvas.jpg", palabra:"uva"},
+    {imagen:"https://png.pngtree.com/png-clipart/20220306/original/pngtree-canned-tuna-fish-png-image_7418878.png", palabra:"atun"},
+    {imagen:"https://www.frutamare.com/wp-content/uploads/2020/03/frutas-1200x800.jpg", palabra:"frutas"},
+    {imagen:"https://images.ecestaticos.com/jTP9LXep7k6LEOxzD85cXoH2NLo=/0x3:1336x750/1200x900/filters:fill(white):format(jpg)/f.elconfidencial.com%2Foriginal%2Fc96%2F5ea%2Fd35%2Fc965ead35a0d363ed00ce40138dfcad3.jpg", palabra:"azucar"},
+    {imagen:"https://img.freepik.com/vector-gratis/utensilios-cocina-cuchara-pegatina-sobre-fondo-blanco_1308-67037.jpg", palabra:"cuchara"},
+    {imagen:"https://birdingaragon.com/wp-content/uploads/2023/01/Urraca.jpg", palabra:"urraca"},
+    {imagen:"https://static.wixstatic.com/media/79f36e_f9be5e316b54424ab07a78e724357619~mv2.png/v1/fill/w_318,h_437,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/URSULA%20PORTADA%20WEB.png", palabra:"ursula"}
+];
+
+const nivel2 = [
+    {imagen:"https://ant.culturarecreacionydeporte.gov.co/sites/default/files/oso.jpg", palabra:"oso"},
+    {imagen:"https://img.freepik.com/vector-gratis/ilustracion-oruga-verde-dibujos-animados_1308-179453.jpg?semt=ais_hybrid&w=740&q=80", palabra:"oruga"},
+    {imagen:"https://thumbs.dreamstime.com/z/caracteres-de-forma-geom%C3%A9trica-color-ovalado-para-educaci%C3%B3n-preescolar-figura-sonriente-actividades-aprendizaje-car%C3%A1cter-con-390356699.jpg", palabra:"ovalo"},
+    {imagen:"https://img.freepik.com/vector-gratis/mosca-domestica_1308-33595.jpg?semt=ais_hybrid&w=740&q=80", palabra:"mosca"},
+    {imagen:"https://png.pngtree.com/png-vector/20240824/ourlarge/pngtree-round-decorative-plate-with-artistic-design-png-image_13611898.png", palabra:"plato"},
+    {imagen:"https://thumbs.dreamstime.com/b/ostra-con-una-perla-45855969.jpg", palabra:"ostra"},
+    {imagen:"https://img.freepik.com/vector-gratis/pequeno-personaje-dibujos-animados_1308-138187.jpg?semt=ais_hybrid&w=740&q=80", palabra:"gato"},
+    {imagen:"https://media.istockphoto.com/id/1459447786/es/vector/alegre-personaje-de-dibujos-animados-gota-de-agua-feliz-saltando.jpg?s=170667a&w=0&k=20&c=8gs1aC099svXfVRztj6DS6M8-7Yun7h17D17pq8Ox-Q=", palabra:"gota"},
+    {imagen:"https://png.pngtree.com/png-clipart/20241112/original/pngtree-cartoon-brown-horse-with-saddle-clipart-illustration-free-png-image_16923660.png", palabra:"caballo"},
+    {imagen:"https://img.freepik.com/vector-premium/lindo-dibujo-animado-foca-aislado-sobre-fondo-blanco_338371-1743.jpg?semt=ais_hybrid&w=740&q=80", palabra:"foca"}
+];
+
+let nivelActual = 1;
+let bancoPalabras = [];
+let indice = 0;
+let puntos = 0;
+let focalLetra = null;
+let mouseX = 0, mouseY = 0;
+
+function iniciarNivel(n) {
+    nivelActual = n;
+    indice = 0;
+    document.getElementById('pantalla-inicio').style.display = 'none';
+    document.getElementById('pantalla-siguiente').style.display = 'none';
+    
+    if (nivelActual === 1) {
+        bancoPalabras = [...nivel1].sort(() => Math.random() - 0.5);
+        document.getElementById('vocal-o').style.display = 'none';
+    } else {
+        bancoPalabras = [...nivel2].sort(() => Math.random() - 0.5);
+        document.getElementById('vocal-o').style.display = 'block';
+    }
+    mostrarPalabra();
+}
+
+function mostrarPalabra() {
+    let objeto = bancoPalabras[indice];
+    document.getElementById("imagen").innerHTML = `<img src="${objeto.imagen}">`;
+    let contenedor = document.getElementById("palabra");
+    
+    let html = "";
+    for (let letra of objeto.palabra) {
+        let esHueco = (nivelActual === 1) ? (letra === "a" || letra === "u") : (letra === "a" || letra === "u" || letra === "o");
+        if (esHueco) {
+            html += `<div class="vacio" data-meta="${letra}"></div>`;
+        } else {
+            html += `<div class="letra-display">${letra}</div>`;
+        }
+    }
+    contenedor.innerHTML = html;
+    document.getElementById("progreso").style.width = (indice / bancoPalabras.length * 100) + "%";
+}
+
+// Lógica de Movimiento
+function moverElemento(e) {
+    if (!focalLetra) return;
+    e.preventDefault();
+    let x = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+    let y = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+    mouseX = x; mouseY = y;
+    focalLetra.style.position = "fixed";
+    focalLetra.style.left = (x - 40) + "px";
+    focalLetra.style.top = (y - 40) + "px";
+}
+
+function soltarElemento() {
+    if (!focalLetra) return;
+    let vacios = document.querySelectorAll('.vacio');
+    vacios.forEach(cuadro => {
+        let rect = cuadro.getBoundingClientRect();
+        if (mouseX > rect.left && mouseX < rect.right && mouseY > rect.top && mouseY < rect.bottom) {
+            cuadro.innerHTML = focalLetra.innerHTML;
+            cuadro.classList.remove('bien', 'mal');
+        }
+    });
+    focalLetra.style.position = "relative";
+    focalLetra.style.left = "0"; focalLetra.style.top = "0";
+    focalLetra = null;
+}
+
+function verificarPalabra() {
+    let vacios = document.querySelectorAll(".vacio");
+    let todosLlenos = Array.from(vacios).every(v => v.innerHTML !== "");
+    
+    if (!todosLlenos) {
+        alert("¡Pon todas las vocales antes de comprobar! 🤔");
+        return;
+    }
+
+    let aciertos = 0;
+    vacios.forEach(v => {
+        if (v.innerHTML === v.getAttribute('data-meta')) {
+            v.classList.add('bien');
+            aciertos++;
+        } else {
+            v.classList.add('mal');
+            setTimeout(() => {
+                v.classList.remove('mal');
+                v.innerHTML = ""; 
+            }, 1000);
+        }
+    });
+
+    if (aciertos === vacios.length) {
+        puntos += 10;
+        document.getElementById("puntos").innerText = puntos;
+        setTimeout(siguientePalabra, 1200);
+    }
+}
+
+function siguientePalabra() {
+    indice++;
+    if (indice < bancoPalabras.length) {
+        mostrarPalabra();
+    } else {
+        if (nivelActual === 1) {
+            document.getElementById('puntos-intermedios').innerText = puntos;
+            document.getElementById('pantalla-siguiente').style.display = 'flex';
+        } else {
+            document.getElementById('total-final').innerText = puntos;
+            document.getElementById('final').style.display = 'flex';
+        }
+    }
+}
+
+document.querySelectorAll(".letra-boton").forEach(boton => {
+    boton.onmousedown = (e) => { focalLetra = boton; };
+    boton.ontouchstart = (e) => { focalLetra = boton; };
+});
+
+window.onmousemove = moverElemento; window.ontouchmove = moverElemento;
+window.onmouseup = soltarElemento; window.ontouchend = soltarElemento;
+</script>
+
+</body>
+</html>
